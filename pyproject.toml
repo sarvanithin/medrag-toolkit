@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medrag-toolkit"
+version = "0.1.0"
+description = "Production Medical RAG Framework with mandatory citation grounding and hallucination detection"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+keywords = ["medical", "rag", "pubmed", "llm", "hallucination-detection"]
+dependencies = [
+    "faiss-cpu>=1.8",
+    "sentence-transformers>=3.0",
+    "rank-bm25>=0.2",
+    "httpx>=0.27",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "click>=8.1",
+    "rich>=13.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "diskcache>=5.6",
+    "tenacity>=8.3",
+    "structlog>=24.0",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+medrag = "medrag_toolkit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

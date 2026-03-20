@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  medrag-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2
+      - FAISS_INDEX_DIR=/data/indices
+    volumes:
+      - medrag-data:/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    entrypoint: >
+      sh -c "ollama serve & sleep 5 && ollama pull llama3.2 && wait"
+
+volumes:
+  medrag-data:
+  ollama-data:
