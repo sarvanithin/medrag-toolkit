@@ -1,8 +1,6 @@
 """Unit tests for retrieval layer."""
 from __future__ import annotations
 
-import numpy as np
-import pytest
 
 from medrag_toolkit.knowledge.base import Document
 from medrag_toolkit.retrieval.base import RetrievedDocument

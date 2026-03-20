@@ -154,8 +154,6 @@ def health():
 
 
 async def _health_async() -> None:
-    import httpx
-
     from medrag_toolkit.config import Settings
     from medrag_toolkit.core import MedRAG
 
@@ -178,6 +176,7 @@ async def _health_async() -> None:
         pubmed_ready = medrag._pubmed_kb._indexer.is_ready
         drug_ready = medrag._drug_kb._indexer.is_ready
 
-        icon = lambda ok: "[green]✓[/green]" if ok else "[yellow]○[/yellow]"
+        def icon(ok: bool) -> str:
+            return "[green]✓[/green]" if ok else "[yellow]○[/yellow]"
         console.print(f"{icon(pubmed_ready)} PubMed index: {'ready' if pubmed_ready else 'not built — run: medrag index build'}")
         console.print(f"{icon(drug_ready)} Drug KB index: {'ready' if drug_ready else 'not built'}")

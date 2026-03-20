@@ -1,7 +1,6 @@
 """Unit tests for citation extraction and verification."""
 from __future__ import annotations
 
-import pytest
 
 from medrag_toolkit.citation.extractor import extract
 from medrag_toolkit.citation.verifier import verify

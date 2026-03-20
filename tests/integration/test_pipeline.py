@@ -6,16 +6,12 @@ Run with: pytest tests/integration/ -v
 """
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import numpy as np
+from unittest.mock import AsyncMock
 import pytest
 
 from medrag_toolkit.citation.extractor import extract
 from medrag_toolkit.citation.verifier import verify
 from medrag_toolkit.hallucination.detector import HallucinationDetector
-from medrag_toolkit.knowledge.base import Document
 from medrag_toolkit.retrieval.base import RetrievedDocument
 
 
@@ -101,8 +97,6 @@ async def test_end_to_end_mock_pipeline():
     )
 
     # Mock retrieval
-    mock_retrieve = AsyncMock(return_value=FIXTURE_DOCS)
-
     # Run citation + hallucination checks (real, not mocked)
     answer = FIXTURE_ANSWER
     citations = extract(answer)
