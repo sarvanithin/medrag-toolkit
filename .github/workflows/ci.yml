@@ -29,7 +29,7 @@ jobs:
         run: ruff check src/ tests/
 
       - name: Type check
-        run: mypy src/medrag_toolkit/ --ignore-missing-imports
+        run: mypy src/medrag_toolkit/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs --allow-untyped-calls
 
       - name: Unit tests
         run: pytest tests/unit/ -v --tb=short

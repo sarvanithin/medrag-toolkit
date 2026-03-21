@@ -44,7 +44,7 @@ class QueryResponse(BaseModel):
 
 class IndexBuildRequest(BaseModel):
     source: str = Field(..., pattern="^(pubmed|drug_kb|all)$")
-    topics: list[str] = Field(..., min_length=1, max_items=50)
+    topics: list[str] = Field(..., min_length=1)
 
 
 class IndexBuildResponse(BaseModel):

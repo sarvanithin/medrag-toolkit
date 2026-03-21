@@ -9,6 +9,8 @@ from __future__ import annotations
 import pickle
 from pathlib import Path
 
+from typing import Any
+
 import numpy as np
 import structlog
 
@@ -18,11 +20,11 @@ log = structlog.get_logger(__name__)
 class FAISSIndexer:
     def __init__(self, embedding_model: str = "all-MiniLM-L6-v2") -> None:
         self._model_name = embedding_model
-        self._model = None  # lazy load
-        self._index = None
+        self._model: Any = None  # lazy load: SentenceTransformer
+        self._index: Any = None  # lazy load: faiss.IndexFlatIP
         self._metadata: list[dict] = []
 
-    def _get_model(self):
+    def _get_model(self) -> Any:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
             self._model = SentenceTransformer(self._model_name)
