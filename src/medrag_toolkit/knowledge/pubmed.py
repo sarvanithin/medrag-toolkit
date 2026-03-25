@@ -153,25 +153,36 @@ class PubMedKnowledgeBase:
                 log.warning("pubmed_index_load_failed", error=str(exc))
 
     async def build_index(self, topics: list[str]) -> None:
-        """Fetch abstracts for each topic and build FAISS index."""
+        """Fetch abstracts for each topic and build FAISS index.
+
+        Topics are processed sequentially with a 1s pause between each
+        to stay within NCBI's 3 req/s unauthenticated rate limit.
+        """
         all_docs: list[Document] = []
 
-        async def fetch_topic(topic: str) -> list[Document]:
+        for i, topic in enumerate(topics):
+            if i > 0:
+                await asyncio.sleep(1.0)  # respect NCBI rate limit
+            log.info("pubmed_fetching_topic", topic=topic, n=f"{i+1}/{len(topics)}")
+
             pmids = await self._client.search(topic)
             if not pmids:
-                return []
-            summaries, articles = await asyncio.gather(
-                self._client.fetch_summaries(pmids),
-                self._client.fetch_abstracts(pmids[:10]),
-            )
+                log.debug("pubmed_no_results", topic=topic)
+                continue
+
+            await asyncio.sleep(0.5)  # pause between search and fetch
+            summaries = await self._client.fetch_summaries(pmids)
+
+            await asyncio.sleep(0.5)
+            articles = await self._client.fetch_abstracts(pmids[:10])
+
             abstract_map = {a.pmid: a.abstract for a in articles}
-            docs = []
             for s in summaries:
                 s.abstract = abstract_map.get(s.pmid, "")
                 content = f"{s.title}\n\n{s.abstract}".strip()
                 if not content:
                     continue
-                docs.append(Document(
+                all_docs.append(Document(
                     id=f"pubmed_{s.pmid}",
                     content=content,
                     source="pubmed",
@@ -183,11 +194,6 @@ class PubMedKnowledgeBase:
                         "topic": topic,
                     },
                 ))
-            return docs
-
-        results = await asyncio.gather(*[fetch_topic(t) for t in topics])
-        for docs in results:
-            all_docs.extend(docs)
 
         # Deduplicate by PMID
         seen: set[str] = set()
@@ -197,6 +203,10 @@ class PubMedKnowledgeBase:
             if pmid not in seen:
                 seen.add(pmid)
                 unique_docs.append(doc)
+
+        if not unique_docs:
+            log.error("pubmed_index_build_failed_no_docs", topics=topics)
+            return
 
         self._documents = unique_docs
         self._indexer.build(unique_docs)

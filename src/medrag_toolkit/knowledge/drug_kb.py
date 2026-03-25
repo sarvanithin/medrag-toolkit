@@ -206,52 +206,48 @@ class DrugKnowledgeBase:
                 log.warning("drug_kb_index_load_failed", error=str(exc))
 
     async def build_index(self, topics: list[str]) -> None:
-        """Fetch drug label data for each topic (drug name) and build FAISS index."""
+        """Fetch drug label data sequentially to respect OpenFDA rate limits."""
         docs: list[Document] = []
 
-        async def fetch_drug(drug: str) -> list[Document]:
+        for i, drug in enumerate(topics):
+            if i > 0:
+                await asyncio.sleep(0.3)  # OpenFDA: 240 req/min free tier
+            log.info("drug_kb_fetching", drug=drug, n=f"{i+1}/{len(topics)}")
+
             label = await self._openfda.get_drug_label(drug)
             if not label:
-                return []
-            drug_docs = []
+                log.debug("drug_kb_no_label", drug=drug)
+                continue
 
-            # Drug interactions section
             interactions = label.get("drug_interactions", [])
             if interactions:
                 content = f"Drug interactions for {drug}:\n" + " ".join(interactions)[:2000]
-                drug_docs.append(Document(
+                docs.append(Document(
                     id=f"drug_interaction_{drug.lower().replace(' ', '_')}",
                     content=content,
                     source="drug_kb",
                     metadata={"drug": drug, "type": "interactions"},
                 ))
 
-            # Warnings & contraindications
             warnings = label.get("warnings", []) + label.get("contraindications", [])
             if warnings:
                 content = f"Warnings and contraindications for {drug}:\n" + " ".join(warnings)[:2000]
-                drug_docs.append(Document(
+                docs.append(Document(
                     id=f"drug_warnings_{drug.lower().replace(' ', '_')}",
                     content=content,
                     source="drug_kb",
                     metadata={"drug": drug, "type": "warnings"},
                 ))
 
-            # Dosage information
             dosage = label.get("dosage_and_administration", [])
             if dosage:
                 content = f"Dosage information for {drug}:\n" + " ".join(dosage)[:2000]
-                drug_docs.append(Document(
+                docs.append(Document(
                     id=f"drug_dosage_{drug.lower().replace(' ', '_')}",
                     content=content,
                     source="drug_kb",
                     metadata={"drug": drug, "type": "dosage"},
                 ))
-            return drug_docs
-
-        results = await asyncio.gather(*[fetch_drug(t) for t in topics])
-        for drug_docs in results:
-            docs.extend(drug_docs)
 
         if docs:
             self._documents = docs
