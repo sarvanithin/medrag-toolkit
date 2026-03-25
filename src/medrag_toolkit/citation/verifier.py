@@ -50,6 +50,9 @@ def verify(
     # Build lookup sets from retrieved docs
     pmid_set: set[str] = set()
     drug_set: set[str] = set()
+    # All retrieved content combined for drug name scanning
+    all_content_lower = " ".join(doc.content.lower() for doc in retrieved_docs)
+
     for doc in retrieved_docs:
         if doc.source == "pubmed":
             pmid = doc.metadata.get("pmid", "")
@@ -65,8 +68,13 @@ def verify(
     for cite in citations:
         if cite.type == "pmid" and cite.id in pmid_set:
             grounded.append(cite)
-        elif cite.type == "drug" and cite.id.lower() in drug_set:
-            grounded.append(cite)
+        elif cite.type == "drug":
+            drug_lower = cite.id.lower()
+            # Grounded if drug has a drug_kb doc OR is mentioned in any retrieved content
+            if drug_lower in drug_set or drug_lower in all_content_lower:
+                grounded.append(cite)
+            else:
+                hallucinated.append(cite)
         else:
             hallucinated.append(cite)
 

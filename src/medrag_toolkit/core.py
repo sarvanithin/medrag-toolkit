@@ -148,28 +148,58 @@ class MedRAG:
         top_k = self._config.faiss.top_k
         is_drug = bool(_DRUG_SIGNALS_RE.search(question))
 
-        if is_drug:
-            pubmed_task = self._pubmed_kb.search(question, top_k=top_k // 2)
-            drug_task = self._drug_kb.search(question, top_k=top_k // 2)
+        # Always search PubMed; search Drug KB when drug signals present
+        pubmed_task = self._pubmed_kb.search(question, top_k=top_k)
+        drug_task = self._drug_kb.search(question, top_k=top_k // 2) if is_drug else None
+
+        if drug_task:
             pubmed_docs, drug_docs = await asyncio.gather(pubmed_task, drug_task)
-            combined = pubmed_docs + drug_docs
         else:
-            combined = await self._pubmed_kb.search(question, top_k=top_k)
+            pubmed_docs = await pubmed_task
+            drug_docs = []
+
+        # Pin drug docs for any drugs explicitly mentioned in the question
+        # so the LLM always has their label data and can cite them correctly
+        from medrag_toolkit.knowledge.drug_kb import _extract_drug_names
+        mentioned_drugs = _extract_drug_names(question)
+        pinned: list = []
+        if mentioned_drugs and self._drug_kb._indexer.is_ready:
+            for drug_name in mentioned_drugs[:5]:
+                for meta, score in self._drug_kb._indexer.search(drug_name, top_k=2):
+                    if meta.get("metadata", {}).get("drug", "").lower() == drug_name.lower():
+                        pinned.append(meta)
+
+        combined = pubmed_docs + drug_docs
 
         # Convert Document → RetrievedDocument
         from medrag_toolkit.retrieval.base import RetrievedDocument
+        seen_ids: set[str] = set()
         results = []
-        for doc in combined:
-            score = float(doc.metadata.get("score", 0.0))
-            results.append(RetrievedDocument(
-                id=doc.id,
-                content=doc.content,
-                source=doc.source,
-                metadata=doc.metadata,
-                score=score,
-            ))
 
-        # Sort by score descending
+        # Add pinned drug docs first (guaranteed in context)
+        for meta in pinned:
+            if meta["id"] not in seen_ids:
+                seen_ids.add(meta["id"])
+                results.append(RetrievedDocument(
+                    id=meta["id"],
+                    content=meta["content"],
+                    source=meta["source"],
+                    metadata=meta.get("metadata", {}),
+                    score=1.0,  # pinned = highest priority
+                ))
+
+        for doc in combined:
+            if doc.id not in seen_ids:
+                seen_ids.add(doc.id)
+                score = float(doc.metadata.get("score", 0.0))
+                results.append(RetrievedDocument(
+                    id=doc.id,
+                    content=doc.content,
+                    source=doc.source,
+                    metadata=doc.metadata,
+                    score=score,
+                ))
+
         results.sort(key=lambda d: d.score, reverse=True)
         return results[:top_k]
 

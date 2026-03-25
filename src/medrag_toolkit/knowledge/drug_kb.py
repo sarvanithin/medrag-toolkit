@@ -28,7 +28,8 @@ _EVENT_URL = "https://api.fda.gov/drug/event.json"
 _DRUG_MENTION_RE = re.compile(
     r"\b([A-Za-z][a-z]{2,}(?:mycin|cillin|oxacin|olol|pril|sartan|statin|"
     r"azole|vir|mab|nib|tide|zide|olam|pam|zolam|phen|dine|mide|zone|farin|parin|"
-    r"codone|morphine|codeine|methadone))\b",
+    r"tran|xaban|gatran|oxone|lukast|terol|tropium|sonide|asone|"
+    r"codone|morphine|codeine|methadone|metformin|insulin))\b",
     re.IGNORECASE,
 )
 
